@@ -117,6 +117,9 @@ void *realloc(void *ptr, size_t size) {
         next_chunk->size = chunk->size - size - sizeof(chunk_meta);
         next_chunk->freeptr = 0;
         free(next_ptr);
+
+        chunk->size = size;
+        return ptr;
     }
     // check if requesting to grow the chunk
     else if (size > chunk->size) {
@@ -124,9 +127,10 @@ void *realloc(void *ptr, size_t size) {
         void *new_ptr = malloc(size);
         memcpy(new_ptr, ptr, size);
         free(ptr);
+        return new_ptr;
+    } else {
+        chunk->size = size;
+        return ptr;
     }
-
-    chunk->size = size;
-    return ptr;
 }
 
