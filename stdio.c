@@ -1,4 +1,5 @@
-#include <stdio.h>
+#include "stdio.h"
+#include "malloc.h"
 
 #define _IO_CHUNK_SIZE 32
 
@@ -64,17 +65,18 @@ int puts(char *s) {
  */
 void *readline() {
     void *chunk = malloc(_IO_CHUNK_SIZE);
+    int total_size = 0;
+
     while (1) {
-        total_size = 0;
         for (int i = 0; i < _IO_CHUNK_SIZE; i++) {
             char c = getc();
             if (c == '\0' || c == '\n') {
                 // null byte read! time to return    
-                *(chunk + total_size) = '\0';
+                *((char *)(chunk + total_size)) = '\0';
                 return chunk;
             }
 
-            *(chunk + total_size) = c;
+            *((char *)(chunk + total_size)) = c;
             total_size++;
         }
 

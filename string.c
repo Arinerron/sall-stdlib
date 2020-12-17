@@ -1,4 +1,5 @@
 //#include <string.h>
+#include "types.h"
 
 int strlen(const char *s) {
     int n;
@@ -74,7 +75,7 @@ char *strchr(const char *s, char c) {
 void *memset(void *v, int c, size_t n) {
     if (!v) return NULL;
     for (size_t i = 0; i < n; i++) {
-        *(v + i) = c;
+        *((char *)(v + i)) = c;
     }
     return v;
 }
