@@ -1,39 +1,54 @@
-#include <panic.h>
+#include "stdlib.h"
+#include "string.h"
 
 #define _MAX_ADDRESS 0xFFFF
-#define _MIN_CHUNK_SIZE = 2;
 
 typedef struct chunk_meta {
     size_t size;
     void *freeptr;
 } chunk_meta;
 
-void *free_ptr_head = 0;
-void *bottom_ptr = 0;
+void *free_ptr_head = NULL;
+void *bottom_ptr = _MAX_ADDRESS;
 
+#define IS_CHUNK_FREE(chunk) (!(chunk).freeptr)
 #define GET_CHUNK_META(ptr) (chunk_meta *) ((ptr) - sizeof(chunk_meta))
 
 
 void *malloc(size_t size) {
+    ASSERT(size < _MAX_ADDRESS, "Cannot allocate above size _MAX_ADDRESS");
+    if (!size) return NULL;
+
+    // first, iterate over the free list and see if we have a chunk that'll fit
     chunk_meta chunk;
-    void *ptr = 0;
-    chunk_meta prev_chunk;
+    void *ptr = free_ptr_head;
+    void **prev_freeptr = &free_ptr_head;
 
-    while (1) {
+    while (ptr) {
         chunk = GET_CHUNK_META(ptr);
-        if (!chunk.freeptr) break;
+        if (!IS_CHUNK_FREE(chunk)) break; // chunk list is terminated by a null byte (which also happens to signify in use chunks)
 
-        prev_chunk = 
+        int can_split_chunk = size > (chunk.size + sizeof(chunk_meta));
+        if (can_split_chunk) {
+            chunk_meta new_chunk = (chunk_meta *)(ptr + size);
+            new_chunk.size = chunk.size - (sizeof(chunk_meta) + size);
 
-        int can_split_chunk = size > (chunk.size + sizeof(chunk_meta))
-        if (size == chunk.size  // is the chunk exactly the right size?
-            || can_split_chunk) { // or are we able to split the chunk?
+            // insert new, split chunk into linked list
+            new_chunk.freeptr = *prev_freeptr;
+            *prev_freeptr = ((void *)new_chunk) + sizeof(chunk_meta);
+        }
+
+        if (size == chunk.size || can_split_chunk) {
             chunk.size = size;
 
             // remove from free list
             *prev_freeptr = chunk.freeptr;
             chunk.freeptr = 0;
+
+            return ptr;
         }
+
+        prev_chunk_freeptr = &(chunk.freeptr);
         ptr = chunk.freeptr;
     }
 
@@ -42,13 +57,88 @@ void *malloc(size_t size) {
     chunk = GET_CHUNK_META(ptr);
 
     bottom_ptr = ptr - sizeof(chunk_meta);
-    if (bottom_ptr <= __END__) {
-        // we hit the binary base!
-        panic("Heap hit the binary base!");
-    }
+    ASSERT(bottom_ptr > __END__, "Out of memory; heap bottom pointer is below the binary end address");
 
     chunk.size = size;
     chunk.freeptr = 0; // chunk in use
 
     return ptr;
 }
+
+
+void free(void *ptr) {
+    ASSERT(ptr >= __END__, "Cannot free chunk that is inside of the binary end address");
+    if (!ptr) return;
+
+    chunk_meta *chunk = GET_CHUNK_META(ptr);
+    ASSERT(chunk.size, "Attempting to free chunk of NULL size");
+    ASSERT(!chunk.freeptr, "Attempting to double free chunk (!chunk.freeptr)");
+    ASSERT(ptr != free_ptr_head, "Attempting to double free a chunk (ptr == free_ptr_head)");
+
+    chunk.freeptr = free_ptr_head;
+    free_ptr_head = chunk.freeptr;
+
+    // check if we can consolidate with the chunk in front of the current one
+    void *next_ptr = ptr + chunk.size + sizeof(chunk_meta);
+    chunk_meta *next_chunk = GET_CHUNK_META(next_ptr);
+    if (IS_CHUNK_FREE(next_chunk)) {
+        // yes, we can consolidate. add the size of the next chunk to the cur chunk
+        chunk.size += sizeof(chunk_meta) + next_chunk.size;
+
+        // remove the next_chunk from the linked list of free chunks
+        chunk_meta *_chunk;
+        int found_chunk = 0;
+        for (void *_ptr = free_ptr_head; _ptr; _ptr = _chunk.freeptr) { // "&& _chunk" to check?
+            if (_ptr) {
+                _chunk = GET_CHUNK_META(_ptr);
+                if (next_ptr == _chunk.freeptr) {
+                    found_chunk = 1;
+                    _chunk.freeptr = next_chunk.freeptr;
+                    break;
+                }
+            }
+        }
+
+        ASSERT(found_chunk, "Failed to find chunk in free chunks linked list");
+    }
+}
+
+
+void *realloc(void *ptr, size_t size) {
+    // basic simplification checks
+    if (!size) {
+        free(ptr);
+        return NULL;
+    } else if (!ptr) {
+        return malloc(size);
+    }
+
+    chunk_meta *chunk = GET_CHUNK_META(ptr);
+    ASSERT(!IS_CHUNK_FREE(chunk), "Reallocing a freed chunk");
+    if (chunk.size == size) {
+        // NOTE: this if case is unnecessary, but is a slight optimization
+        return chunk;
+    }
+
+    // check if requesting to shrink the chunk
+    if (size < chunk.size && chunk.size - size > sizeof(chunk_meta)) {
+        // create a fake chunk then free it
+        void *next_ptr = ptr + chunk.size + sizeof(chunk_meta);
+        chunk_meta *next_chunk = GET_CHUNK_META(ptr);
+
+        next_chunk.size = chunk.size - size - sizeof(chunk_meta);
+        next_chunk.freeptr = 0;
+        free(next_ptr);
+    }
+    // check if requesting to grow the chunk
+    else if (size > chunk.size) {
+        // malloc new chunk, memcpy stuff, then free old
+        void *new_ptr = malloc(size);
+        memcpy(new_ptr, ptr, size);
+        free(ptr);
+    }
+
+    chunk.size = size;
+    return ptr;
+}
+
