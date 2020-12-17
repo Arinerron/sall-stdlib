@@ -46,14 +46,12 @@ int gets(char *s) {
 
 int puts(char *s) {
     char *orig_s = s;
-    if (s) {
-        while (*s) {
-            putc(*s);
-            s++;
-        }
+    while (*s) {
+        putc(*s);
+        s++;
     }
     putc('\n');
-    return (int) (orig_s - s) + 1;
+    return (int)(orig_s - s) + 1;
 }
 
 
