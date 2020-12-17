@@ -52,7 +52,8 @@ int puts(char *s) {
             s++;
         }
     }
-    return (int) (orig_s - s);
+    putc('\n');
+    return (int) (orig_s - s) + 1;
 }
 
 
