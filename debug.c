@@ -1,4 +1,6 @@
 #include "malloc.h"
+#include "stdio.h"
+#include "types.h"
 
 
 void hexdump(void *ptr, size_t n) {
@@ -8,13 +10,13 @@ void hexdump(void *ptr, size_t n) {
 
 void print_chunk(chunk_meta *chunk) {
     print("[ CHUNK 0x");
-    print_hex((uint16_t)chunk);
+    print_uhex((uint16_t)chunk);
     print(" ]\n");
 
     print("State: ");
     print((IS_CHUNK_FREE(chunk) ? "FREE" : "IN-USE"));
     print("\nFree Pointer: 0x");
-    print_hex((uint16_t)(chunk->freeptr));
+    print_uhex((uint16_t)(chunk->freeptr));
     print("\n");
 }
 
@@ -22,7 +24,7 @@ void print_chunk(chunk_meta *chunk) {
 void print_heap() {
     print("========== BEGIN HEAP DUMP ==========\n\n");
 
-    size_t total_inuse, size_t total_free;
+    size_t total_inuse = 0, total_free = 0;
 
     void *ptr = bottom_ptr;
     while (ptr != _MAX_ADDRESS) {
@@ -42,11 +44,11 @@ void print_heap() {
     print("=====================================\n");
     
     print("Total in-use bytes: 0x");
-    print_hex(total_inuse);
+    print_uhex(total_inuse);
     print("\nTotal free bytes: 0x");
-    print_hex(total_free);
+    print_uhex(total_free);
     print("\nTotal bytes used by the heap: 0x");
-    print_hex((int)(_MAX_ADDRESS - bottom_ptr)); // the difference is because of sizeof(chunk_meta)s
+    print_uhex((uint32_t)((uint32_t)_MAX_ADDRESS - (uint32_t)bottom_ptr)); // the difference is because of sizeof(chunk_meta)s
 
     print("\n=========== END HEAP DUMP ===========\n");
 }

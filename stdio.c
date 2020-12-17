@@ -1,7 +1,9 @@
 #include "stdio.h"
+#include "stdlib.h"
 #include "malloc.h"
+#include "types.h"
 
-#define _IO_CHUNK_SIZE 32
+#define _IO_CHUNK_SIZE 16
 
 
 inline char getc() {
@@ -44,14 +46,20 @@ int gets(char *s) {
 }
 
 
-int puts(char *s) {
+int fputs(char *s) {
     char *orig_s = s;
     while (*s) {
         putc(*s);
         s++;
     }
+    return (int)(orig_s - s);
+}
+
+
+int puts(char *s) {
+    int n = fputs(s);
     putc('\n');
-    return (int)(orig_s - s) + 1;
+    return n + 1;
 }
 
 
@@ -89,3 +97,55 @@ void *readline() {
 //////////
 
 
+#define ui16(i) ((i) < 0 ? 0xFFFF - ((uint16_t)(i)) : (uint16_t)(i))
+
+
+inline int print(char *s) {
+    return fputs(s);
+}
+
+
+static inline int print_sign(int16_t i) {
+    if (i < 0) {
+        putc("-");
+    }
+}
+
+
+static inline int print_base(uint16_t i, int base) {
+    ASSERT();
+
+    if (i > base) {
+        print_base(i / base, base);
+    }
+
+    putc("01234567890abcdef"[i % base]);
+}
+
+
+int print_int(int i) {
+    int n = print_sign((int16_t)i);
+    return print_base(ui16(i), 10) + n;
+}
+
+
+int print_uint(uint16_t i) {
+    return print_base(i, 10);
+}
+
+
+int print_hex(int i) {
+    int n = print_sign((int16_t)i);
+    return print_base(ui16(i), 16) + n;
+}
+
+
+int print_uhex(uint16_t i) {
+    return print_base(i, 16);
+}
+
+
+int print_octal(int i) {
+    int n = print_sign((int16_t)i);
+    return print_base(ui16(i), 8) + n;
+}
