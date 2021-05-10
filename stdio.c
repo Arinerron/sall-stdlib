@@ -49,8 +49,7 @@ int gets(char *s) {
 int fputs(char *s) {
     char *orig_s = s;
     while (*s) {
-        putc(*s);
-        s++;
+        s += putc(*s);
     }
     return (int)(orig_s - s);
 }
