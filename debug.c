@@ -4,7 +4,25 @@
 
 
 void hexdump(void *ptr, size_t n) {
-    // TODO
+    int i;
+    void *end_ptr = ptr + n;
+    while (ptr < end_ptr) {
+        if (i % 16 == 0) {
+            if (i) {
+                print("\n");
+            }
+
+            print("0x");
+            print_uhex((uint16_t)ptr);
+            print(":\t");
+        }
+
+        print_uhex((uint16_t)(*((char *)ptr)));
+        print(" ");
+
+        ptr++;
+        i++;
+    }
 }
 
 
